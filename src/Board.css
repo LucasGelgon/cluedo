@@ -1,0 +1,47 @@
+.board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+  }
+  
+  .room {
+    border: 2px solid #333;
+    padding: 20px;
+    background-color: #fff;
+    text-align: center;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .room h3 {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  .room-image {
+    width: 100%;
+    height: auto;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  
+  .room.current-room {
+    background-color: lightblue;
+    border-color: blue;
+  }
+  
+  .room.accessible-room {
+    background-color: lightgreen;
+    border-color: green;
+  }
+  
+  .room.inaccessible-room {
+    background-color: lightgray;
+    border-color: gray;
+    cursor: not-allowed;
+  }
+  
