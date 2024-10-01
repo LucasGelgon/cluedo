@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Button, Form } from 'react-bootstrap';
-import { checkHypothesis, getInitialState } from './gameLogic';
+import { checkHypothesis, initializeGame, resetGame, getCrime, getPlayerCards } from './gameLogic';
 import { executeQuery } from './neo4jConnection'; 
 import './App.css';
 import Board from './Board';
@@ -18,6 +18,9 @@ function App() {
   const [selectedSuspect, setSelectedSuspect] = useState('');
   const [selectedWeapon, setSelectedWeapon] = useState('');
   const [crime, setCrime] = useState({ suspect: '', weapon: '', room: '' });
+  const [isGameOver, setIsGameOver] = useState(false); 
+  const [playerCards, setPlayerCards] = useState([]);
+  const [showPlayerCards, setShowPlayerCards] = useState(false);
 
   const initializePositions = (rooms) => {
     const allRooms = rooms;
@@ -42,26 +45,47 @@ function App() {
     return rooms[Math.floor(Math.random() * rooms.length)];
   };
 
+  const initializeGameState = async () => {
+    setIsLoading(true);
+    await resetGame();
+    await initializeGame();
+    const crimeData = await getCrime();
+    setCrime(crimeData);
+    
+    const allCards = await fetchAllCards();
+    const playerCardsData = await getPlayerCards();
+    setPlayerCards(playerCardsData);
+
+    const suspectsList = allCards.filter(card => card.type === 'Person').map(card => card.name);
+    const weaponsList = allCards.filter(card => card.type === 'Weapon').map(card => card.name);
+    const roomsList = allCards.filter(card => card.type === 'Room').map(card => card.name);
+    
+    setSuspects(suspectsList);
+    setWeapons(weaponsList);
+    setRoomsState(roomsList.map(room => ({ name: room })));
+    
+    initializePositions(roomsList);
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    const initializeGame = async () => {
-      const initialState = await getInitialState();
-      if (initialState) {
-        const rooms = Object.values(initialState);
-        setRoomsState(rooms.map(room => ({ name: room })));
-        initializePositions(rooms);
-      }
-      setIsLoading(false);
-    };
-  
-    initializeGame();
+    initializeGameState();
   }, []);
+
+  const fetchAllCards = async () => {
+    const query = `
+      MATCH (card)
+      WHERE (card:Person OR card:Weapon OR card:Room)
+      RETURN card.name AS name, labels(card)[0] AS type
+    `;
+    return await executeQuery(query);
+  };
 
   const handleMovePlayer = (newRoom) => {
     console.log('Déplacement du joueur vers :', newRoom);
     setPlayerPosition(newRoom);
     moveAI();
   }; 
-
 
   const moveAI = () => {
     const updatedAiPositions = aiPositions.map(ai => {
@@ -76,49 +100,27 @@ function App() {
 
   const getAccessibleRooms = (currentRoom) => {
     const roomMap = {
-      'Cuisine': ['Grand Salon', 'Salle à manger'],
-      'Grand Salon': ['Cuisine', 'Véranda', 'Salle à manger'],
-      'Véranda': ['Grand Salon', 'Petit Salon'],
-      'Petit Salon': ['Véranda', 'Hall', 'Bibliothèque'],
-      'Studio': ['Hall'],
-      'Hall': ['Cuisine', 'Grand Salon', 'Petit Salon', 'Studio', 'Bureau'],
-      'Bibliothèque': ['Petit Salon'],
-      'Salle à manger': ['Grand Salon'],
-      'Bureau': ['Hall']
+      'Cuisine': ['Hall','Grand Salon', 'Salle à manger'],
+      'Grand Salon': ['Hall','Cuisine', 'Salle à manger', 'Petit Salon'],
+      'Véranda': ['Hall','Studio', 'Petit Salon'],
+      'Petit Salon': ['Grand Salon','Véranda', 'Bibliothèque', 'Bureau'],
+      'Studio': ['Véranda', 'Bibliothèque'],
+      'Hall': ['Cuisine', 'Grand Salon', 'Véranda', 'Salle à manger'],
+      'Bibliothèque': ['Studio', 'Petit Salon'],
+      'Salle à manger': ['Hall','Grand Salon', 'Cuisine'],
+      'Bureau': ['Petit Salon']
     };
     return roomMap[currentRoom] || [];
   };
 
-  useEffect(() => {
-    const fetchSuspects = async () => {
-      try {
-        const result = await executeQuery(`
-          MATCH (s:Person)
-          RETURN s.name AS suspect
-          ORDER BY rand()
-        `);
-        setSuspects(result.map(item => item.suspect) || []);
-      } catch (error) {
-        console.error('Error fetching suspects:', error);
-      }
-    };
-  
-    const fetchWeapons = async () => {
-      try {
-        const result = await executeQuery(`
-          MATCH (w:Weapon)
-          RETURN w.name AS weapon
-          ORDER BY rand()
-        `);
-        setWeapons(result.map(item => item.weapon) || []);
-      } catch (error) {
-        console.error('Error fetching weapons:', error);
-      }
-    };
-  
-    fetchSuspects();
-    fetchWeapons();
-  }, []);
+  const handleReplay = async () => {
+    setIsLoading(true);
+    await initializeGameState();
+    setIsGameOver(false);
+    setSelectedSuspect('');
+    setSelectedWeapon('');
+    setResult('');
+  };
 
   const handleCheckHypothesis = async () => {
     console.log("Vérification de l'hypothèse avec :", {
@@ -143,63 +145,90 @@ function App() {
   
     if (result.isCorrect) {
         message += "Vous avez gagné !";
+        setIsGameOver(true);
     }
   
     setResult(message);
     alert(message);
-};
+  };
   
   if (isLoading) {
     return <div>Chargement...</div>; 
   }
 
+  if (isGameOver) {
+    return (
+      <Container className="text-center">
+        <h1>Partie Terminée</h1>
+        <p>{result}</p>
+        <Button variant="primary" onClick={handleReplay}>
+          Rejouer
+        </Button>
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <div>
-        <h1 className="text-center my-4">Cluedo IUT</h1>
+        <h1 className="text-center my-4">Cluedo</h1>
         <Board 
           roomsState={roomsState} 
           playerPosition={playerPosition} 
           handleMovePlayer={handleMovePlayer} 
           aiPositions={aiPositions}
+          crime={crime}
         />
   
         <div id="hypothese">
-        <Form style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: '20px' }}>
-        <Form.Group style={{ width: '100%', maxWidth: '400px' }}>
-          <Form.Select
-          className="custom-select"
-          value={selectedSuspect}
-          onChange={(e) => setSelectedSuspect(e.target.value)}
-          >
-          <option value="">Sélectionnez un suspect</option>
-          {suspects.map((suspect) => (
-            <option key={suspect} value={suspect}>
-              {suspect}
-            </option>
-          ))}
-        </Form.Select>
+          <Form style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: '20px' }}>
+            <Form.Group style={{ width: '100%', maxWidth: '400px' }}>
+              <Form.Select
+                className="custom-select"
+                value={selectedSuspect}
+                onChange={(e) => setSelectedSuspect(e.target.value)}
+              >
+                <option value="">Sélectionnez un suspect</option>
+                {suspects.map((suspect) => (
+                  <option key={suspect} value={suspect}>
+                    {suspect}
+                  </option>
+                ))}
+              </Form.Select>
 
-        <Form.Select
-          className="custom-select"
-          value={selectedWeapon}
-          onChange={(e) => setSelectedWeapon(e.target.value)}
-        >
-          <option value="">Sélectionnez une arme</option>
-          {weapons.map((weapon) => (
-            <option key={weapon} value={weapon}>
-              {weapon}
-            </option>
-          ))}
-        </Form.Select>
+              <Form.Select
+                className="custom-select"
+                value={selectedWeapon}
+                onChange={(e) => setSelectedWeapon(e.target.value)}
+              >
+                <option value="">Sélectionnez une arme</option>
+                {weapons.map((weapon) => (
+                  <option key={weapon} value={weapon}>
+                    {weapon}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+    
+            <Button style={{ width: '100%', maxWidth: '400px', marginTop: '15px' }} variant="primary" onClick={handleCheckHypothesis}>
+              Vérifier l'hypothèse
+            </Button>
+          </Form>
 
-        </Form.Group>
-  
-        <Button style={{ width: '100%', maxWidth: '400px', marginTop: '15px' }} variant="primary" onClick={handleCheckHypothesis}>
-          Vérifier l'hypothèse
-        </Button>
-      </Form>
-        
+          <button onClick={() => setShowPlayerCards(!showPlayerCards)}>
+            {showPlayerCards ? 'Cacher mes cartes' : 'Afficher mes cartes'}
+          </button>
+
+          {showPlayerCards && playerCards.length > 0 && (
+            <div>
+              <h3>Vos Cartes :</h3>
+              <ul>
+                {playerCards.map((card, index) => (
+                  <li key={index}>{card.name} ({card.type})</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </Container>
