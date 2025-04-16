@@ -3,7 +3,7 @@
 Ce projet est une **version web simplifiée du Cluedo**, développée avec **ReactJS** côté frontend et **Neo4j** pour la base de données.  
 Le joueur évolue dans les différentes pièces, interagit avec des cartes et peut formuler des hypothèses pour résoudre le crime.
 
-🖼️ Des **captures d’écran explicatives** sont disponibles sur : [lgelgon.fr/PageCluedo](https://lgelgon.fr/PageCluedo)
+🖼️ Des **captures d’écran explicatives** sont disponibles sur : [lgelgon.fr/PageChabot](https://lgelgon.fr/PageChatbot)
 
 ---
 
