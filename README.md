@@ -1,4 +1,4 @@
-# 🕵️ Projet Cluedo - Jeu d'enquête interactif
+# 🕵️ Cluedo - Jeu d'enquête interactif
 
 Ce projet est une **version web simplifiée du Cluedo**, développée avec **ReactJS** côté frontend et **Neo4j** pour la base de données.  
 Le joueur évolue dans les différentes pièces, interagit avec des cartes et peut formuler des hypothèses pour résoudre le crime.
@@ -41,7 +41,7 @@ Le joueur évolue dans les différentes pièces, interagit avec des cartes et pe
 
 ---
 
-## 📁 Structure simplifiée
+## 📁 Structure 
 
 ```
 📦 cluedo-game/
@@ -57,31 +57,6 @@ Le joueur évolue dans les différentes pièces, interagit avec des cartes et pe
  ┗ ...
 ```
 
----
-
-## 🧪 Exemple de logique (extrait)
-
-```js
-const handleCheckHypothesis = async () => {
-  const result = checkHypothesis(selectedSuspect, selectedWeapon, playerPosition);
-  if (result.isCorrect) {
-    setIsGameOver(true);
-    alert("Vous avez gagné !");
-  }
-};
-```
-
----
-
-## 🧠 À venir
-
-- Mode multijoueur
-- Affichage graphique des connexions entre pièces
-- Amélioration de l'IA
-
----
-
-## 👨‍💻 Auteurs
+## 👨‍💻 Auteur
 
 Lucas Gelgon  
-Projet réalisé dans le cadre d’un atelier ReactJS / Neo4j universitaire.
